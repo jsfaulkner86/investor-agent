@@ -1,0 +1,61 @@
+name: Manual Test Run — Single Pipeline Cycle
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_fit_score:
+        description: 'Minimum investor fit score (0-100)'
+        required: false
+        default: '60'
+      dry_run:
+        description: 'Dry run — research only, skip email + Notion push'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  manual-pipeline-test:
+    name: Manual Investor Pipeline Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pipeline (test mode)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          CRUNCHBASE_API_KEY: ${{ secrets.CRUNCHBASE_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DIGEST_FROM_EMAIL: ${{ secrets.DIGEST_FROM_EMAIL }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          MIN_FIT_SCORE: ${{ github.event.inputs.min_fit_score }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          INVESTOR_FOCUS: 'womens_health'
+          RUN_CADENCE_DAYS: '14'
+        run: python pipelines/biweekly_digest.py
